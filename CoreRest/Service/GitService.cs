@@ -55,19 +55,7 @@ namespace CoreRest.Service
                         if ((newProjects.total_count == 1 && newProjects.items.FirstOrDefault().id != project.id)
                             || newProjects.total_count > 1)
                         {
-                            var projectUnstarred = false;
-                            foreach(var projectToAdd in newProjects.items.Take(5))
-                            {
-                                if (!IsLicenseGPL(projectToAdd))
-                                {
-                                    StarProject(token, projectToAdd.owner.login, projectToAdd.name);
-                                    if (!projectUnstarred)
-                                    {
-                                        UnstarProject(token, project.owner.login, project.name);
-                                        projectUnstarred = true;
-                                    }
-                                }
-                            }
+                            UpdateForNonGPLProjects(token, project, newProjects);
                         }
                     }
                 }
@@ -77,6 +65,30 @@ namespace CoreRest.Service
             catch (WebException ex)
             {
                 throw new WebException(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// For a limit of 5 project, them will be added to star projects and unstar the GPL project
+        /// </summary>
+        /// <param name="token">Token of the user</param>
+        /// <param name="project">Project with GPL license to replace</param>
+        /// <param name="newProjects">List of projects with same topic</param>
+        private void UpdateForNonGPLProjects(string token, ProjectModel project, ProjectsSearch newProjects)
+        {
+            var projectUnstarred = false;
+            foreach (var projectToAdd in newProjects.items.Take(5))
+            {
+                // Check if the new project to star have GPL license
+                if (!IsLicenseGPL(projectToAdd))
+                {
+                    StarProject(token, projectToAdd.owner.login, projectToAdd.name);
+                    if (!projectUnstarred)
+                    {
+                        UnstarProject(token, project.owner.login, project.name);
+                        projectUnstarred = true;
+                    }
+                }
             }
         }
 
@@ -178,6 +190,11 @@ namespace CoreRest.Service
             }
         }
 
+        /// <summary>
+        /// Check if the project have GPL license
+        /// </summary>
+        /// <param name="project">Project to check license</param>
+        /// <returns></returns>
         private bool IsLicenseGPL(ProjectModel project)
         {
             return project.license.key.ToLower().Contains("gpl");
